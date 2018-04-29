@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        id="com.birkoss.samsung-health" version="0.0.`">
+    <name>SamsungHealth</name>
+    <description>Cordova Samsung Health</description>
+    <license>Apache 2.0</license>
+    <keywords>cordova,samsung,health</keywords>
+
+    <js-module src="www/samsung-health.js" name="samsung-health">
+        <clobbers target="samsung-health" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*">
+          <feature name="SamsungHealth">
+            <param name="android-package" value="com.birkoss.plugin.SamsungHealth"/>
+          </feature>
+        </config-file>
+
+        <source-file src="src/android/SamsungHealth.java" target-dir="src/com/birkoss/plugin/"/>
+    </platform>
+</plugin>
