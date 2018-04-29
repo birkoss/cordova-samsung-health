@@ -6,8 +6,8 @@
     <license>Apache 2.0</license>
     <keywords>cordova,samsung,health</keywords>
 
-    <js-module src="www/samsung-health.js" name="samsung-health">
-        <clobbers target="samsung-health" />
+    <js-module src="www/samsung-health.js" name="SamsungHealth">
+        <clobbers target="SamsungHealth" />
     </js-module>
 
     <platform name="android">

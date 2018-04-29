@@ -1,12 +1,20 @@
-window.echo = function(str, callback) {
-    cordova.exec(callback, function(err) {
-        callback('Nothing to echo: ' + err);
-    }, "SamsungHealth", "greet", [str]);
+var exec = cordova.require('cordova/exec');
+
+var SamsungHealth = function() {
 };
 
-/*
-module.exports = {
-    greet: function (name, successCallback, errorCallback) {
-        cordova.exec(successCallback, errorCallback, "SamsungHealth8383", "greet", [name]);
-    }
-};*/
+SamsungHealth.prototype.greet = function(name, onSuccess, onError) {
+    var errorCallback = function(obj) {
+        onError(obj);
+    };
+
+    var successCallback = function(obj) {
+        onSuccess(obj);
+    };
+
+    exec(successCallback, errorCallback, 'SamsungHealth', 'greet', [name]);
+};
+
+if (typeof module != 'undefined' && module.exports) {
+    module.exports = SamsungHealth;
+}
