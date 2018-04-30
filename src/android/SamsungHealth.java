@@ -15,6 +15,7 @@ import java.util.Map;
 
 import android.util.Log;
 
+
 public class SamsungHealth extends CordovaPlugin {
 
     String APP_TAG = "CordovaSamsungHealthPlugin";
@@ -25,10 +26,19 @@ public class SamsungHealth extends CordovaPlugin {
     private HealthConnectionErrorResult mConnError;
     private Set<PermissionKey> mKeySet;
 
-    private String mDebug = "";
+    private StepCountReporter mReporter;
+
+    private CallbackContext mCallbackContext;
+
+    private SamsungHealth mShealth;
+
+    public String mDebug = "";
 
     @Override
     public boolean execute(String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
+
+        mCallbackContext = callbackContext;
+        mShealth = this;
 
         if (mActivity == null) {
             mActivity = this.cordova.getActivity();
@@ -39,6 +49,17 @@ public class SamsungHealth extends CordovaPlugin {
             String name = data.getString(0);
             String message = "Hello " + name + "!\n\n" + mDebug;
             callbackContext.success(message);
+
+            return true;
+
+        } else if (action.equals("getData")) {
+
+            mDebug += "REPORTING-START\n";
+
+
+    
+
+            mDebug += "REPORTING-END\n";
 
             return true;
 
@@ -82,6 +103,11 @@ public class SamsungHealth extends CordovaPlugin {
             mDebug += "Health data service is connected.\n";
             HealthPermissionManager pmsManager = new HealthPermissionManager(mStore);
 
+            mReporter = new StepCountReporter(mStore, mShealth);
+
+            mReporter.start(mStepCountObserver);
+            mDebug += "Reporter started...\n";
+
             try {
                 // Check whether the permissions that this application needs are acquired
                 mDebug += "Testing permissions\n";
@@ -96,7 +122,10 @@ public class SamsungHealth extends CordovaPlugin {
                 } else {
                     // Get the current step count and display it
                     // ...
-                    mDebug += "Get the current step count and display it";
+                    // https://developer.samsung.com/forum/thread/retrieve-how-many-steps-were-walked-per-day-for-the-past-7-days/201/279929?boardName=SDK&startId=zzzzz~&searchSubId=0000000026
+                  
+
+                    mDebug += "Get the current step count and display it : " + HealthConstants.StepCount.COUNT + "\n";
                 }
             } catch (Exception e) {
                 mDebug += e.getClass().getName() + " - " + e.getMessage() + "\n";
@@ -117,23 +146,28 @@ public class SamsungHealth extends CordovaPlugin {
     };
 
 
-    private final HealthResultHolder.ResultListener<PermissionResult> mPermissionListener =
-            new HealthResultHolder.ResultListener<PermissionResult>() {
+    public StepCountReporter.StepCountObserver mStepCountObserver = new StepCountReporter.StepCountObserver() {
+        @Override
+        public void onChanged(int count) {
+            mDebug += "Step reported : " + count + "\n";
+        }
+    };
 
-            @Override
-            public void onResult(PermissionResult result) {
-                mDebug += "Permission callback is received.\n";
-                Map<PermissionKey, Boolean> resultMap = result.getResultMap();
+    private final HealthResultHolder.ResultListener<PermissionResult> mPermissionListener = new HealthResultHolder.ResultListener<PermissionResult>() {
+        @Override
+        public void onResult(PermissionResult result) {
+            mDebug += "Permission callback is received.\n";
+            Map<PermissionKey, Boolean> resultMap = result.getResultMap();
 
-                if (resultMap.containsValue(Boolean.FALSE)) {
-                    // Requesting permission fails
-                    mDebug += "Requesting permission fails...\n";
-                } else {
-                    // Get the current step count and display it
-                    mDebug += "get steps...\n";
-                }
+            if (resultMap.containsValue(Boolean.FALSE)) {
+                // Requesting permission fails
+                mDebug += "Requesting permission fails...\n";
+            } else {
+                // Get the current step count and display it
+                mDebug += "get steps...\n";
             }
-        };
+        }
+    };
     
 
 
@@ -164,6 +198,7 @@ public class SamsungHealth extends CordovaPlugin {
 
         mDebug += message + "\n";
     }
+
 
 
 }

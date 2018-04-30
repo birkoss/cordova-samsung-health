@@ -23,6 +23,7 @@
 
         <source-file src="src/android/libs/samsung-health-data-v1.3.0.jar" target-dir="libs/" />
 
+        <source-file src="src/android/StepCountReporter.java" target-dir="src/com/birkoss/plugin/" />
         <source-file src="src/android/SamsungHealth.java" target-dir="src/com/birkoss/plugin/" />
     </platform>
 </plugin>
