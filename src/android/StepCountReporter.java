@@ -32,6 +32,11 @@ import android.util.Log;
 import java.util.Calendar;
 import java.util.TimeZone;
 
+import javax.json.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class StepCountReporter {
     private final HealthDataStore mStore;
     private StepCountObserver mStepCountObserver;
@@ -57,16 +62,17 @@ public class StepCountReporter {
         HealthDataResolver resolver = new HealthDataResolver(mStore, null);
 
         // Set time range from start time of today to the current time
-        long startTime = getStartTimeOfToday();
-        long endTime = startTime + ONE_DAY_IN_MILLIS;
+       // long startTime = getStartTimeOfToday();
+       // long endTime = startTime + ONE_DAY_IN_MILLIS;
 
-         mShealth.mDebug += startTime + " AND " + endTime + "\n";
+
 
         HealthDataResolver.ReadRequest request = new ReadRequest.Builder()
-                    .setDataType(HealthConstants.StepCount.HEALTH_DATA_TYPE)
-                    .setProperties(new String[] {HealthConstants.StepCount.COUNT})
-                    .setLocalTimeRange(HealthConstants.StepCount.START_TIME, HealthConstants.StepCount.TIME_OFFSET,
-                            startTime, endTime)
+                    .setDataType("com.samsung.shealth.step_daily_trend")
+                    //.setProperties(new String[] {"com.samsung.shealth.step_daily_trend"})
+                    //.setLocalTimeRange(HealthConstants.StepCount.START_TIME, HealthConstants.StepCount.TIME_OFFSET, startTime, endTime)
+                    //.setFilter(filter)
+                    .setSort("day_time", HealthDataResolver.SortOrder.DESC)
                     .build();
 
         try {
@@ -77,33 +83,73 @@ public class StepCountReporter {
         }
     }
 
-    private long getStartTimeOfToday() {
-        Calendar today = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-
-        today.set(Calendar.HOUR_OF_DAY, 0);
-        today.set(Calendar.MINUTE, 0);
-        today.set(Calendar.SECOND, 0);
-        today.set(Calendar.MILLISECOND, 0);
-
-        return today.getTimeInMillis();
-    }
-
     private final HealthResultHolder.ResultListener<ReadResult> mRdResult = new HealthResultHolder.ResultListener<ReadResult>(){
 
         @Override
         public void onResult(HealthDataResolver.ReadResult result) {
-            int count = 0;
+
+            JSONArray jsonSteps = new JSONArray();
 
             try {
                 for (HealthData data : result) {
-                    count += data.getInt(HealthConstants.StepCount.COUNT);
+                    String device_uuid = data.getString(HealthConstants.StepCount.DEVICE_UUID);
+                    int count = data.getInt(HealthConstants.StepCount.COUNT);
+                    int source_type = data.getInt("source_type");
+                    long time = data.getLong("create_time");
+
+                    if (source_type == -2) {
+                        continue;
+                    }
+
+                    try {
+                        JSONObject device = null;
+
+                        for (int i = 0; i < jsonSteps.length(); i++) {
+                            JSONObject tmp = jsonSteps.getJSONObject(i);
+                            if (tmp.getString("uuid").equals(device_uuid)) {
+                                device = tmp;
+                                break;
+                            }
+                        }
+
+                        if (device == null) {
+                            device = new JSONObject();
+                            device.put("uuid", device_uuid);
+                            device.put("steps", new JSONArray());
+                            device.put("type", source_type);
+
+                            jsonSteps.put(device);
+                        }
+
+                        JSONObject step = new JSONObject();
+                        step.put("time", time);
+                        step.put("count", count);
+
+                        device.getJSONArray("steps").put(step);
+                    } catch (JSONException e1) {
+                        // TODO Auto-generated catch block
+                      e1.printStackTrace();
+                    }
+
+                    if (data.getString(HealthConstants.StepCount.DEVICE_UUID).equals("ALV976sVxD") || 1 == 1) {
+                        count += data.getInt(HealthConstants.StepCount.COUNT);
+                        mShealth.mDebug += "UUID: (" + data.getString(HealthConstants.StepCount.DEVICE_UUID) + ")\n";
+                        mShealth.mDebug += "Count: " + data.getInt(HealthConstants.StepCount.COUNT) + "\n";
+                        mShealth.mDebug += "TIME: " + data.getString(HealthConstants.StepCount.CREATE_TIME) + "\n";
+                        mShealth.mDebug += "Source Type PKG: " + data.getInt("source_pkg_name") + "\n";
+                        mShealth.mDebug += "Source Type: " + data.getInt("source_type") + "\n";
+                        //mShealth.mDebug += "DAY TIME: " + data.getLong(c.getColumnIndex("day_time")) + "\n";
+                        mShealth.mDebug += "CCOUNT: " + data.getString("com.samsung.shealth.step_daily_trend.datauuid") + "\n";
+                        mShealth.mDebug += "-------------------------\n";
+                    }
                 }
             } finally {
                 result.close();
             }
 
+
             if (mStepCountObserver != null) {
-                mStepCountObserver.onChanged(count);
+                mStepCountObserver.onChanged(jsonSteps.toString());
             }
         }
     };
@@ -119,6 +165,6 @@ public class StepCountReporter {
     };
 
     public interface StepCountObserver {
-        void onChanged(int count);
+        void onChanged(String json);
     }
 }

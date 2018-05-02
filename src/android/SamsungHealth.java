@@ -14,59 +14,50 @@ import java.util.HashSet;
 import java.util.Map;
 
 import android.util.Log;
+import javax.json.*;
 
 
 public class SamsungHealth extends CordovaPlugin {
-
-    String APP_TAG = "CordovaSamsungHealthPlugin";
 
     private Activity mActivity = null;
 
     private HealthDataStore mStore;
     private HealthConnectionErrorResult mConnError;
+
     private Set<PermissionKey> mKeySet;
 
     private StepCountReporter mReporter;
 
-    private CallbackContext mCallbackContext;
-
     private SamsungHealth mShealth;
-
     public String mDebug = "";
+
+    private CallbackContext mCallbackContext;
 
     @Override
     public boolean execute(String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
 
-        mCallbackContext = callbackContext;
-        mShealth = this;
+        if (mShealth == null) {
+            mShealth = this;
+        }
 
         if (mActivity == null) {
             mActivity = this.cordova.getActivity();
         }
 
-        if (action.equals("greet")) {
+        mCallbackContext = callbackContext;
 
-            String name = data.getString(0);
-            String message = "Hello " + name + "!\n\n" + mDebug;
-            callbackContext.success(message);
+        if (action.equals("debug")) {
+            callbackContext.success("Hello " + data.getString(0) + "!\n\n" + mDebug);
 
             return true;
-
         } else if (action.equals("getData")) {
 
-            mDebug += "REPORTING-START\n";
-
-
-    
-
-            mDebug += "REPORTING-END\n";
-
-            return true;
-
-        } else if (action.equals("connect")) {
             mDebug += "Init the connection...\n";
+
             mKeySet = new HashSet<PermissionKey>();
             mKeySet.add(new PermissionKey(HealthConstants.StepCount.HEALTH_DATA_TYPE, PermissionType.READ));
+            mKeySet.add(new PermissionKey("com.samsung.shealth.step_daily_trend", PermissionType.READ));
+
             HealthDataService healthDataService = new HealthDataService();
             try {
                 healthDataService.initialize(mActivity.getApplicationContext());
@@ -75,17 +66,15 @@ public class SamsungHealth extends CordovaPlugin {
                 mDebug += e.toString() + "\n";
             }
 
-            mDebug += "Starting the connection...\n";    
-
+            mDebug += "Requesting the connection to the health data store\n";    
             try {
                 mStore = new HealthDataStore(mActivity.getApplicationContext(), mConnectionListener);
-                // Request the connection to the health data store
                 mStore.connectService();
             } catch (Exception e) {
                 mDebug += e.toString() + "\n";
             }
 
-            mDebug += "After connection...\n";
+            mDebug += "Connection requested\n";
 
             return true;
         } else {
@@ -103,10 +92,7 @@ public class SamsungHealth extends CordovaPlugin {
             mDebug += "Health data service is connected.\n";
             HealthPermissionManager pmsManager = new HealthPermissionManager(mStore);
 
-            mReporter = new StepCountReporter(mStore, mShealth);
 
-            mReporter.start(mStepCountObserver);
-            mDebug += "Reporter started...\n";
 
             try {
                 // Check whether the permissions that this application needs are acquired
@@ -127,6 +113,13 @@ public class SamsungHealth extends CordovaPlugin {
 
                     mDebug += "Get the current step count and display it : " + HealthConstants.StepCount.COUNT + "\n";
                 }
+
+
+                mReporter = new StepCountReporter(mStore, mShealth);
+
+                mReporter.start(mStepCountObserver);
+                mDebug += "Reporter started...\n";
+
             } catch (Exception e) {
                 mDebug += e.getClass().getName() + " - " + e.getMessage() + "\n";
                 mDebug += "Permission setting fails.\n";
@@ -148,8 +141,17 @@ public class SamsungHealth extends CordovaPlugin {
 
     public StepCountReporter.StepCountObserver mStepCountObserver = new StepCountReporter.StepCountObserver() {
         @Override
-        public void onChanged(int count) {
-            mDebug += "Step reported : " + count + "\n";
+        public void onChanged(String json) {
+            //mDebug += "Step reported : " + count + "\n";
+
+            JsonObject jo = Json.createObjectBuilder()
+              .add("employees", Json.createArrayBuilder()
+                .add(Json.createObjectBuilder()
+                  .add("firstName", "John")
+                  .add("lastName", "Doe")))
+              .build();
+
+            mCallbackContext.success(json.toString());
         }
     };
 
@@ -178,21 +180,21 @@ public class SamsungHealth extends CordovaPlugin {
 
         if (mConnError.hasResolution()) {
             switch(error.getErrorCode()) {
-            case HealthConnectionErrorResult.PLATFORM_NOT_INSTALLED:
-                message = "Please install Samsung Health";
-                break;
-            case HealthConnectionErrorResult.OLD_VERSION_PLATFORM:
-                message = "Please upgrade Samsung Health";
-                break;
-            case HealthConnectionErrorResult.PLATFORM_DISABLED:
-                message = "Please enable Samsung Health";
-                break;
-            case HealthConnectionErrorResult.USER_AGREEMENT_NEEDED:
-                message = "Please agree with Samsung Health policy";
-                break;
-            default:
-                message = "Please make Samsung Health available";
-                break;
+                case HealthConnectionErrorResult.PLATFORM_NOT_INSTALLED:
+                    message = "Please install Samsung Health";
+                    break;
+                case HealthConnectionErrorResult.OLD_VERSION_PLATFORM:
+                    message = "Please upgrade Samsung Health";
+                    break;
+                case HealthConnectionErrorResult.PLATFORM_DISABLED:
+                    message = "Please enable Samsung Health";
+                    break;
+                case HealthConnectionErrorResult.USER_AGREEMENT_NEEDED:
+                    message = "Please agree with Samsung Health policy";
+                    break;
+                default:
+                    message = "Please make Samsung Health available";
+                    break;
             }
         }
 

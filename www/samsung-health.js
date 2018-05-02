@@ -1,44 +1,26 @@
 var exec = cordova.require('cordova/exec');
 
-var SamsungHealth = function() {
+var SamsungHealth = function() { };
+
+SamsungHealth.prototype.debug = function(name, onSuccess, onError) {
+    var errorCallback = function(obj) { onError(obj); };
+    var successCallback = function(obj) { onSuccess(obj); };
+
+    exec(successCallback, errorCallback, 'SamsungHealth', 'debug', [name]);
 };
 
-SamsungHealth.prototype.greet = function(name, onSuccess, onError) {
-    var errorCallback = function(obj) {
-    	alert("onError");
-        onError(obj);
-    };
-
-    var successCallback = function(obj) {
-    	alert("onSuccess");
-        onSuccess(obj);
-    };
-
-    exec(successCallback, errorCallback, 'SamsungHealth', 'greet', [name]);
+SamsungHealth.prototype.askPermissions = function(permissions, onSuccess, onError) {
+    var errorCallback = function(obj) { onError(obj); };
+    var successCallback = function(obj) { onSuccess(obj); };
+alert("...");
+    exec(successCallback, errorCallback, 'SamsungHealth', 'askPermissions', [permissions]);
 };
 
-SamsungHealth.prototype.connect = function(name, onSuccess, onError) {
-    var errorCallback = function(obj) {
-        onError(obj);
-    };
+SamsungHealth.prototype.getData = function(name, onSuccess, onError) {
+    var errorCallback = function(obj) { onError(obj); };
+    var successCallback = function(obj) { onSuccess(obj); };
 
-    var successCallback = function(obj) {
-        onSuccess(obj);
-    };
-
-    exec(successCallback, errorCallback, 'SamsungHealth', 'connect', [name]);
-};
-
-SamsungHealth.prototype.getData = function(periods, onSuccess, onError) {
-    var errorCallback = function(obj) {
-        onError(obj);
-    };
-
-    var successCallback = function(obj) {
-        onSuccess(obj);
-    };
-
-    exec(successCallback, errorCallback, 'SamsungHealth', 'getData', [periods]);
+    exec(successCallback, errorCallback, 'SamsungHealth', 'getData', [name]);
 };
 
 if (typeof module != 'undefined' && module.exports) {
