@@ -50,6 +50,13 @@ public class SamsungHealth extends CordovaPlugin {
             callbackContext.success("Hello " + data.getString(0) + "!\n\n" + mDebug);
 
             return true;
+        } else if (action.equals("askPermissions")) {
+
+            healthServiceSetup();
+
+            healthStoreSetup();
+
+            return true;
         } else if (action.equals("getData")) {
 
             mDebug += "Init the connection...\n";
@@ -77,6 +84,11 @@ public class SamsungHealth extends CordovaPlugin {
             mDebug += "Connection requested\n";
 
             return true;
+        } else if (action.equals("getSteps")) {
+
+            getSteps();
+
+            return true;
         } else {
             callbackContext.success("Action Not Found!");
 
@@ -89,52 +101,40 @@ public class SamsungHealth extends CordovaPlugin {
 
         @Override
         public void onConnected() {
-            mDebug += "Health data service is connected.\n";
-            HealthPermissionManager pmsManager = new HealthPermissionManager(mStore);
-
-
-
-            try {
-                // Check whether the permissions that this application needs are acquired
-                mDebug += "Testing permissions\n";
-                Map<PermissionKey, Boolean> resultMap = pmsManager.isPermissionAcquired(mKeySet);
-                mDebug += "IsPermissionAcquired.\n";
-
-                if (resultMap.containsValue(Boolean.FALSE)) {
-                    mDebug += "requestPermissions start\n";
-                    // Request the permission for reading step counts if it is not acquired
-                    pmsManager.requestPermissions(mKeySet, mActivity).setResultListener(mPermissionListener);
-                    mDebug += "requestPermissions end\n";
-                } else {
-                    // Get the current step count and display it
-                    // ...
-                    // https://developer.samsung.com/forum/thread/retrieve-how-many-steps-were-walked-per-day-for-the-past-7-days/201/279929?boardName=SDK&startId=zzzzz~&searchSubId=0000000026
-                  
-
-                    mDebug += "Get the current step count and display it : " + HealthConstants.StepCount.COUNT + "\n";
-                }
-
-
-                mReporter = new StepCountReporter(mStore, mShealth);
-
-                mReporter.start(mStepCountObserver);
-                mDebug += "Reporter started...\n";
-
-            } catch (Exception e) {
-                mDebug += e.getClass().getName() + " - " + e.getMessage() + "\n";
-                mDebug += "Permission setting fails.\n";
-            }
+            //mCallbackContext.success("Health data service is connected.");
+            checkPermissions();
         }
 
         @Override
         public void onConnectionFailed(HealthConnectionErrorResult error) {
-            mDebug += "Health data service is not available.\n";
-            showConnectionFailureDialog(error);
+            String message = "Connection with Samsung Health is not available";
+
+            if (error.hasResolution()) {
+                switch(error.getErrorCode()) {
+                    case HealthConnectionErrorResult.PLATFORM_NOT_INSTALLED:
+                        message = "Please install Samsung Health";
+                        break;
+                    case HealthConnectionErrorResult.OLD_VERSION_PLATFORM:
+                        message = "Please upgrade Samsung Health";
+                        break;
+                    case HealthConnectionErrorResult.PLATFORM_DISABLED:
+                        message = "Please enable Samsung Health";
+                        break;
+                    case HealthConnectionErrorResult.USER_AGREEMENT_NEEDED:
+                        message = "Please agree with Samsung Health policy";
+                        break;
+                    default:
+                        message = "Please make Samsung Health available";
+                        break;
+                }
+            }
+
+            mCallbackContext.error(message);
         }
 
         @Override
         public void onDisconnected() {
-            mDebug += "Health data service is disconnected.\n";
+            mCallbackContext.error("Health data service is disconnected.");
         }
     };
 
@@ -142,15 +142,6 @@ public class SamsungHealth extends CordovaPlugin {
     public StepCountReporter.StepCountObserver mStepCountObserver = new StepCountReporter.StepCountObserver() {
         @Override
         public void onChanged(String json) {
-            //mDebug += "Step reported : " + count + "\n";
-
-            JsonObject jo = Json.createObjectBuilder()
-              .add("employees", Json.createArrayBuilder()
-                .add(Json.createObjectBuilder()
-                  .add("firstName", "John")
-                  .add("lastName", "Doe")))
-              .build();
-
             mCallbackContext.success(json.toString());
         }
     };
@@ -158,49 +149,61 @@ public class SamsungHealth extends CordovaPlugin {
     private final HealthResultHolder.ResultListener<PermissionResult> mPermissionListener = new HealthResultHolder.ResultListener<PermissionResult>() {
         @Override
         public void onResult(PermissionResult result) {
-            mDebug += "Permission callback is received.\n";
             Map<PermissionKey, Boolean> resultMap = result.getResultMap();
 
             if (resultMap.containsValue(Boolean.FALSE)) {
-                // Requesting permission fails
-                mDebug += "Requesting permission fails...\n";
+                mCallbackContext.error("Requesting permission fails...");
             } else {
-                // Get the current step count and display it
-                mDebug += "get steps...\n";
+                mCallbackContext.success("Get steps...");
             }
         }
     };
-    
 
 
-    private void showConnectionFailureDialog(HealthConnectionErrorResult error) {
-
-        mConnError = error;
-        String message = "Connection with Samsung Health is not available";
-
-        if (mConnError.hasResolution()) {
-            switch(error.getErrorCode()) {
-                case HealthConnectionErrorResult.PLATFORM_NOT_INSTALLED:
-                    message = "Please install Samsung Health";
-                    break;
-                case HealthConnectionErrorResult.OLD_VERSION_PLATFORM:
-                    message = "Please upgrade Samsung Health";
-                    break;
-                case HealthConnectionErrorResult.PLATFORM_DISABLED:
-                    message = "Please enable Samsung Health";
-                    break;
-                case HealthConnectionErrorResult.USER_AGREEMENT_NEEDED:
-                    message = "Please agree with Samsung Health policy";
-                    break;
-                default:
-                    message = "Please make Samsung Health available";
-                    break;
-            }
-        }
-
-        mDebug += message + "\n";
+    private void initPermissions() {
+        mKeySet = new HashSet<PermissionKey>();
+        mKeySet.add(new PermissionKey(HealthConstants.StepCount.HEALTH_DATA_TYPE, PermissionType.READ));
+        mKeySet.add(new PermissionKey("com.samsung.shealth.step_daily_trend", PermissionType.READ));
     }
 
+    private void healthServiceSetup() {
+        try {
+            HealthDataService healthDataService = new HealthDataService();
+            healthDataService.initialize(mActivity.getApplicationContext());
+        } catch (Exception e) {
+            mCallbackContext.error(e.toString());
+        }
+    }
 
+    private void healthStoreSetup() {
+        try {
+            mStore = new HealthDataStore(mActivity.getApplicationContext(), mConnectionListener);
+            mStore.connectService();
+        } catch (Exception e) {
+            mCallbackContext.error(e.toString());
+        }
+    }
 
+    private void getSteps() {
+        mReporter = new StepCountReporter(mStore, mShealth);
+        mReporter.start(mStepCountObserver);
+    }
+
+    private void checkPermissions() {
+        try {
+            initPermissions();
+
+            HealthPermissionManager pmsManager = new HealthPermissionManager(mStore);
+
+            Map<PermissionKey, Boolean> resultMap = pmsManager.isPermissionAcquired(mKeySet);
+
+            if (resultMap.containsValue(Boolean.FALSE)) {
+                pmsManager.requestPermissions(mKeySet, mActivity).setResultListener(mPermissionListener);
+            } else {
+                mCallbackContext.success("Get the current step count and display it");
+            }
+        } catch (Exception e) {
+            mCallbackContext.error("Permission setting fails: " + e.getClass().getName() + " - " + e.getMessage());
+        }
+    }
 }

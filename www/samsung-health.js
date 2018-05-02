@@ -12,7 +12,7 @@ SamsungHealth.prototype.debug = function(name, onSuccess, onError) {
 SamsungHealth.prototype.askPermissions = function(permissions, onSuccess, onError) {
     var errorCallback = function(obj) { onError(obj); };
     var successCallback = function(obj) { onSuccess(obj); };
-alert("...");
+
     exec(successCallback, errorCallback, 'SamsungHealth', 'askPermissions', [permissions]);
 };
 
